@@ -1,88 +1,189 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ScrollView, 
+import React, { useState,useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
   SafeAreaView,
   StatusBar,
-  Dimensions,Modal
+  Dimensions, Modal
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from 'axios';
+import FormData from 'form-data';
 
 const { width } = Dimensions.get('window');
 
 const GoalsList = () => {
   const [activeTab, setActiveTab] = useState('Details');
-    const [logoutVisible, setLogoutVisible] = useState(false);
+  const [logoutVisible, setLogoutVisible] = useState(false);
+ 
   
+
+  const [graphList, setGraphList] = useState([]);
+
+
+  // var lableList = ["12/20/12", "12/21/14", "12/22/14", "12/22/50", "12/23/24"];
+
   // Sample data for the chart
   const chartData = {
     labels: ["12/20/12", "12/21/14", "12/22/14", "12/22/50", "12/23/24"],
     datasets: [
       {
-        data: [20, 100, 30, 60, 30],
+        data:graphList,
         color: () => '#007AFF', // iOS blue color
         strokeWidth: 2
       }
     ],
   };
 
-  // Sample data for the table
-  const tableData = [
-    { 
-      id: 1, 
-      description: 'ABC', 
-      subDescription: 'Verbal & Motor Imitation (0)',
-      value: 0,
-      timeCount: '3 Minutes',
-      hasChart: true
-    },
-    { 
-      id: 2, 
-      description: 'Gross Motor Imitation (3-2)', 
-      value: null,
-      hasChart: false
-    },
-    { 
-      id: 3, 
-      description: 'Gross Motor Imitation (1.0 3)', 
-      value: '00:07',
-      hasChart: false
-    },
-  ];
+  const [tableData, setTableData] = useState([]);
 
-  const renderValueControl = (item) => {
+    useEffect(() => {
+      getGraphData();
+    }, []);
+    
+    const getGraphData = async () => {
+      try {
+        const storedUserData = await AsyncStorage.getItem('userData');
+        if (!storedUserData) {
+          throw new Error('User data not found');
+        }
+    
+        const userData = JSON.parse(storedUserData);
+        const token = userData?.api_token;
+    
+        if (!token) {
+          throw new Error('No token found');
+        }
+    
+        let formData = new FormData();
+        formData.append('appointment_id', '2223');
+    
+        let config = {
+          method: 'post',
+          url: 'https://therapy.kidstherapy.me/api/appointment-goals',
+          headers: { 
+            'Accept': 'application/json', 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data' // Set correct content type for FormData
+          },
+          data: formData
+        };
+    
+        const response = await axios(config);
+        console.log("Response:", response.data);
+
+        let configs = {
+          method: 'post',
+          url: 'https://therapy.kidstherapy.me/api/appointment-goals',
+          headers: { 
+            'Accept': 'application/json', 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data' // Set correct content type for FormData
+          },
+          data: formData
+        };
+
+        const graphList = {
+          patientGoals: response.data.patientGoals.map((goal) => ({
+            ...response.data.patientGoals// Spread existing goal properties
+    
+          })),
+        };
+
+        setGraphList(graphList);
+
+      console.log('vsszvszvzcVZC', graphList);
+      
+
+      const goals = response.data.patientGoals.map((goal, index) => ({
+        id: index + 1,
+        subDescription: goal.goal,
+        description: goal.goal_category?.category || "Other",
+        value: 0,
+        timeCount: goal.timeCount || "",
+        hasChart: false,
+      }));
+      setTableData(goals);
+    
+      } catch (error) {
+        console.error("Error fetching data:", error.response ? error.response.data : error.message);
+      }
+    };
+
+    
+
+    
+
+  const renderValueControl = (item, index) => {
     if (item.value === null) return null;
+
+
     
     const handleLogout = () => {
       setLogoutVisible(false);
-      console.log("User logged out"); 
+      console.log("User logged out");
       // Add logout logic here (e.g., clearing auth state)
     };
     return (
       <View style={styles.valueControl}>
-        <TouchableOpacity style={styles.minusButton}>
-          <Text style={styles.buttonText}>−</Text>
+        <TouchableOpacity
+          style={styles.minusButton}
+          onPress={() => graphValueUpdate(index, 'countMinus')}
+        >
+          <Text style={styles.buttonText}>-</Text>
         </TouchableOpacity>
         <View style={styles.valueDisplay}>
           <Text style={styles.valueText}>{item.value}</Text>
         </View>
-        <TouchableOpacity style={styles.plusButton}>
+        <TouchableOpacity
+          style={styles.minusButton}
+          onPress={() => graphValueUpdate(index, 'countAdd')}
+        >
           <Text style={styles.buttonText}>+</Text>
         </TouchableOpacity>
       </View>
     );
   };
 
-  const renderActionButtons = () => {
+
+  const getRandomNumber = () => Math.floor(Math.random() * 100) + 1; // Generates a random number between 1 and 100
+
+  const graphValueUpdate = (index, type) => {
+    setTableData(prevData => {
+      const newData = [...prevData];
+      if (type === "chartVisible") {
+        newData[index] = { ...newData[index], hasChart: !newData[index].hasChart };
+      } else if (type === "countAdd") {
+        newData[index] = { ...newData[index], value: newData[index].value + 1 };
+        setGraphList(prevGraph => [...prevGraph, getRandomNumber()]);
+      } else if (type === "countMinus") {
+        if (newData[index].value > 0) { // Prevents value from going below 0
+          newData[index] = { ...newData[index], value: newData[index].value - 1 };
+          setGraphList(prevGraph => (prevGraph.length > 0 ? prevGraph.slice(0, -1) : prevGraph));
+        }
+      }
+      return newData;
+    });
+  };
+
+  const renderActionButtons = (index) => {
     return (
       <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.graphButton} >
-          <MaterialCommunityIcons name="chart-bell-curve-cumulative" size={20} color="#007AFF" />
+        <TouchableOpacity
+          style={styles.graphButton}
+          onPress={() => graphValueUpdate(index, 'chartVisible')}
+        >
+          <MaterialCommunityIcons
+            name="chart-bell-curve-cumulative"
+            size={24}
+            color="#007AFF"
+          />
         </TouchableOpacity>
         <TouchableOpacity style={styles.deleteButton}>
           <MaterialCommunityIcons name="close" size={20} color="#FF3B30" />
@@ -98,57 +199,53 @@ const GoalsList = () => {
   const handleGoalsListNotesScreen = () => {
     navigation.navigate("GoalsListNotes");
   };
-   const handleGoalsListDetailScreen = () => {
+  const handleGoalsListDetailScreen = () => {
     navigation.navigate("GoalsListDetail");
   };
- 
-  const handleGoalsListVerify= () => {
+
+  const handleGoalsListVerify = () => {
     navigation.navigate("GoalsListVerify");
   };
   const handleLogout = () => {
     setLogoutVisible(false);
-    console.log("User logged out"); 
+    console.log("User logged out");
     // Add logout logic here (e.g., clearing auth state)
   };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#007AFF" />
-      
-      {/* Header */} 
+
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <MaterialCommunityIcons name="chevron-left" size={30} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Goals List</Text>
-       
+
       </View>
-      <View>
-      <TouchableOpacity style={styles.syncButton}>
-          <Text style={styles.syncText}>Sync</Text>
-        </TouchableOpacity>
-      </View>
+
       {/* Tabs */}
-         <View style={styles.buttonC}>
-           {/* Tab Buttons */}
-           <View style={styles.buttonContainer}>
-             
-                       <TouchableOpacity style={styles.inactiveButton}onPress={handleGoalsListDetailScreen}>
-                         <Text style={styles.inactiveText}>Details</Text>
-                       </TouchableOpacity>
-                       <TouchableOpacity style={styles.activeButton}  onPress={handleGoalsListNotesScreen}>
-                         <Text style={styles.buttonText}>Notes</Text>
-                       </TouchableOpacity>
-                       <TouchableOpacity style={styles.inactiveButton} onPress={handleGoalsListVerify}>
-                         <Text style={styles.inactiveText}>Verify</Text>
-                       </TouchableOpacity>
-                      
-                     </View>
-                     </View>
+      <View style={styles.buttonC}>
+        {/* Tab Buttons */}
+        <View style={styles.buttonContainer}>
+
+          <TouchableOpacity style={styles.inactiveButton} onPress={handleGoalsListDetailScreen}>
+            <Text style={styles.inactiveText}>Details</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.activeButton} onPress={handleGoalsListNotesScreen}>
+            <Text style={styles.buttonText}>Notes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.inactiveButton} onPress={handleGoalsListVerify}>
+            <Text style={styles.inactiveText}>Verify</Text>
+          </TouchableOpacity>
+
+        </View>
+      </View>
       {/* Total Time Count */}
       <View style={styles.totalTimeContainer}>
         <Text style={styles.totalTimeText}>Total Time Count: 10 Minutes</Text>
       </View>
-      
+
       {/* Table Header */}
       <View style={styles.tableHeader}>
         <Text style={[styles.tableHeaderText, { flex: 2 }]}>Description</Text>
@@ -156,7 +253,11 @@ const GoalsList = () => {
         <Text style={[styles.tableHeaderText, { flex: 0.7 }]}>Graph</Text>
         <Text style={[styles.tableHeaderText, { flex: 0.7 }]}>Action</Text>
       </View>
-      
+      <View style={styles.totalTimeContainer}>
+      <Text style={styles.totalTimeText}>{graphList.length}</Text>
+
+
+      </View>
       <ScrollView style={styles.scrollView}>
         {/* Table Rows */}
         {tableData.map((item, index) => (
@@ -169,18 +270,27 @@ const GoalsList = () => {
                 )}
               </View>
               <View style={{ flex: 1, alignItems: 'center' }}>
-                {renderValueControl(item)}
+                {renderValueControl(item, index)}
               </View>
               <View style={{ flex: 1.4, flexDirection: 'row', justifyContent: 'space-around' }}>
-                {renderActionButtons()}
+                {renderActionButtons(index)}
               </View>
             </View>
-            
+ 
             {/* Chart for first item */}
             {item.hasChart && (
               <View style={styles.chartContainer}>
                 <LineChart
-                  data={chartData}
+                  data={{
+                    labels: ["12/20/12", "12/21/14", "12/22/14", "12/22/50", "12/23/24"],
+                    datasets: [
+                      {
+                        data:[graphList.patientGoals[0].id],
+                        color: () => '#007AFF', // iOS blue color
+                        strokeWidth: 2
+                      }
+                    ],
+                  }}
                   width={width - 20}
                   height={220}
                   chartConfig={{
@@ -220,53 +330,49 @@ const GoalsList = () => {
                   <Text style={styles.timeCountText}>Time Count: 3 Minutes</Text>
                 </View>
                 <View style={styles.pagination}>
-                          <TouchableOpacity style={styles.pageButton}>
-                            <Text style={styles.pageButtonText}>-1</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={styles.pageButton}>
-                            <Text style={styles.pageButtonText}>1</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={styles.pageButton}>
-                            <Text style={styles.pageButtonText}>1</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={styles.pageButton}>
-                            <Text style={styles.pageButtonText}>-1</Text>
-                          </TouchableOpacity>
-                        </View>
+                  <TouchableOpacity style={styles.pageButton}>
+                    <Text style={styles.pageButtonText}>-1</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.pageButton}>
+                    <Text style={styles.pageButtonText}>1</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.pageButton}>
+                    <Text style={styles.pageButtonText}>1</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.pageButton}>
+                    <Text style={styles.pageButtonText}>-1</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           </View>
         ))}
       </ScrollView>
-      
-      {/* Collect Data Button */}
-       <TouchableOpacity style={styles.logoutButton} onPress={() => setLogoutVisible(true)}>
-              <Text style={styles.logoutText}>Collect Data</Text>
-            </TouchableOpacity>
-      
-            {/* Logout Confirmation Modal */}
-            <Modal transparent={true} visible={logoutVisible} animationType="fade">
-              <View style={styles.modalBackground}>
-                <View style={styles.modalContainer}>
-                  <MaterialCommunityIcons name="" size={40} color="blue" />
-                  <Text style={styles.modalText}>
-                  Are you sure you want to submit the data? Once submitted, it cannot be edited.
-                  </Text>
-                  <View style={styles.buttonContainer}>
-                    <TouchableOpacity style={styles.cancelButton} onPress={() => setLogoutVisible(false)}>
-                      <Text style={styles.cancelText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.yesButton} onPress={handleLogout}>
-                      <Text style={styles.yesText}>Submit</Text>
-                    </TouchableOpacity>
-                    
-                  </View>
-                </View>
-              </View>
-            </Modal>
+
+
+      {/* Logout Confirmation Modal */}
+      {/* <Modal transparent={true} visible={logoutVisible} animationType="fade">
+        <View style={styles.modalBackground}>
+          <View style={styles.modalContainer}>
+            <MaterialCommunityIcons name="" size={40} color="blue" />
+            <Text style={styles.modalText}>
+              Are you sure you want to submit the data? Once submitted, it cannot be edited.
+            </Text>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setLogoutVisible(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.yesButton} onPress={handleLogout}>
+                <Text style={styles.yesText}>Submit</Text>
+              </TouchableOpacity>
+
+            </View>
+          </View>
+        </View>
+      </Modal> */}
     </SafeAreaView>
 
-    
+
   );
 };
 
@@ -279,7 +385,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#007AFF', 
+    backgroundColor: '#007AFF',
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
     paddingHorizontal: 20,
@@ -289,11 +395,11 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 5,
     width: 40,
-  },pagination: {
+  }, pagination: {
     flexDirection: "row",
     justifyContent: "center",
     marginTop: 10,
-    marginLeft:-160,
+    marginLeft: -160,
   },
   pageButton: {
     backgroundColor: "#007bff",
@@ -302,26 +408,28 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     margin: 5,
   },
-  buttonC:{
-    marginHorizontal:20
+  buttonC: {
+    marginHorizontal: 20,
+    top: 10,
   },
   pageButtonText: {
     color: "white",
     fontWeight: "bold",
   },
-  
+
   tabContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    padding:23
-  }, buttonContainer: {
+    padding: 23
+  },
+  buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginVertical: 1,
-    marginHorizontal:8,
-    top:-10
+    marginHorizontal: 8,
+
   },
-   activeButton: {
+  activeButton: {
     backgroundColor: '#007bff',
     paddingVertical: 8,
     paddingHorizontal: 32,
@@ -343,7 +451,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: "blue",
-    
+
   },
   activeTab: {
     backgroundColor: "#0080DC",
@@ -351,7 +459,7 @@ const styles = StyleSheet.create({
   tabText: {
     color: "#0080DC",
     fontWeight: "bold",
-    
+
   },
   activeTabText: {
     color: "#FFFFFF",
@@ -363,53 +471,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     flex: 1,
   },
-  syncButton: {
-    backgroundColor: 'white',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 20,
-    
-    width: 100,
-    marginStart:270,
-    borderWidth:1,
-    borderColor:"blue",
-    alignItems: 'center',
-    margin:10,
-  },
-  syncText: {
-    color: '#007AFF',
-    fontWeight: '500',
-    fontSize: 16,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 15,
-    paddingBottom: 5,
-  },
-  tab: {
-    paddingVertical: 8,
-    paddingHorizontal: 25,
-    borderRadius: 25,
-    marginHorizontal: 5,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  // activeTab: {
-  //   backgroundColor: '#007AFF',
-  // },
-  // tabText: {
-  //   color: '#007AFF',
-  //   fontWeight: '500',
-  //   fontSize: 16,
-  // },
-  // activeTabText: {
-  //   color: 'white',
-  // },
+
+
+
   totalTimeContainer: {
     paddingVertical: 10,
     paddingHorizontal: 20,
+    top: 18,
   },
   totalTimeText: {
     fontWeight: 'bold',
@@ -422,6 +490,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
+    top: 20,
+    margin: 10
   },
   tableHeaderText: {
     fontWeight: 'bold',
@@ -430,9 +500,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    borderWidth:1,
-    borderColor:"#fff",
-    margin:10,
+    borderWidth: 1,
+    borderColor: "#fff",
+    margin: 10,
   },
   tableRow: {
     flexDirection: 'row',
@@ -451,7 +521,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 3,
-    width:120,
+    width: 120,
   },
   valueControl: {
     flexDirection: 'row',
@@ -550,7 +620,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 14,
   },
- 
+
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -559,7 +629,7 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     margin: 20, alignItems: 'center',
   },
-  logoutText: { fontSize: 16, color: "#fff", marginLeft: 10,paddingLeft:103 },
+  logoutText: { fontSize: 16, color: "#fff", marginLeft: 10, paddingLeft: 103 },
   modalBackground: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)" },
   modalContainer: { backgroundColor: "#FFFFFF", padding: 50, paddingHorizontal: 20, borderRadius: 30, width: 350, alignItems: "center" },
   modalText: { fontSize: 16, textAlign: "center", marginVertical: 15 },

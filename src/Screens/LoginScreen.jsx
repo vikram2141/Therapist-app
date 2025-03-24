@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { 
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Keyboard, TouchableWithoutFeedback 
+  View, Text,Image, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Keyboard, TouchableWithoutFeedback 
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
@@ -81,9 +81,9 @@ const LoginScreen = () => {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.logoButton}>
-            <Text style={styles.logoText}>Logo Here</Text>
-          </TouchableOpacity>
+         <TouchableOpacity style={styles.logoButton}>
+                 <Image source={require('../../src/assets/sun.png')} style={styles.logoImage} />
+                 </TouchableOpacity>
         </View>
 
         <Text style={styles.title}>Log In Now</Text>
@@ -127,10 +127,23 @@ const LoginScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#ffffff" },
-  header: { alignItems: "center", marginBottom: 30, backgroundColor: "#0073e6", padding: 40, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
-  logoButton: { backgroundColor: "#fff", paddingHorizontal: 20, paddingVertical: 5, borderRadius: 6 },
-  logoText: { fontSize: 14, fontWeight: "bold", color: "#090D4D" },
-  title: { fontSize: 24, fontWeight: "bold", color: "#090D4D", marginBottom: 5, paddingHorizontal: 20 },
+  header: { alignItems: "center", marginBottom: 30, backgroundColor: "#0073e6", padding: 10, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+  logoButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+  },
+  logoImage: {
+    width: 100, // Adjust size as needed
+    height: 100, // Adjust size as needed
+    resizeMode: 'contain',   
+      paddingHorizontal: 60,
+      paddingVertical: 60,
+      borderRadius: 66,
+      backgroundColor:"#fff"
+
+  },
+   title: { fontSize: 24, fontWeight: "bold", color: "#090D4D", marginBottom: 5, paddingHorizontal: 20 },
   subtitle: { fontSize: 14, color: "#090D4D", marginBottom: 20, paddingHorizontal: 20 },
   label: { fontSize: 14, fontWeight: "bold", marginTop: 10, color: "#090D4D", paddingHorizontal: 25 },
   input: { backgroundColor: "#E7EDFF", padding: 12, borderRadius: 4, marginTop: 5, marginHorizontal: 20 },

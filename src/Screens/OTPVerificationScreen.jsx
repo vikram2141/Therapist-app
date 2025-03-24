@@ -177,6 +177,7 @@ const styles = StyleSheet.create({
     color: "#090D4D",
     marginBottom: 20,
     textAlign: "center",
+    paddingRight:100
   },
   label: {
     fontSize: 14,

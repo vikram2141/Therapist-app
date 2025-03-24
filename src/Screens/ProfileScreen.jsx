@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons"; 
+import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, Modal, FlatList } from "react-native";
+import Ionicons from "react-native-vector-icons/Ionicons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import FontAwesome from "react-native-vector-icons/FontAwesome";
-import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import FormData from "form-data";
 
 const ProfileScreen = () => {
   const [logoutVisible, setLogoutVisible] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [emailDataUpdate, setEmailDataUpdate] = useState("");
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -18,28 +19,40 @@ const ProfileScreen = () => {
 
   const fetchProfile = async () => {
     try {
-      const response = await axios.get("https://api.example.com/profile");
+      const user = await AsyncStorage.getItem("userData");
+      if (!user) throw new Error("User not found in storage");
+
+      const userData = JSON.parse(user);
+      setEmailDataUpdate(userData.email);
+
+      let data = new FormData();
+      let config = {
+        method: "get",
+        url: "https://therapy.kidstherapy.me/api/profile",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "multipart/form-data", // Fixed Content-Type issue
+          Authorization: `Bearer ${userData.api_token}`,
+        },
+        data: data,
+      };
+
+      const response = await axios.request(config);
+      console.log("Profile Data:", response.data);
       setProfile(response.data);
     } catch (error) {
       console.error("Error fetching profile:", error);
-      Alert.alert("Error", "Failed to load profile data");
     }
   };
 
   const handleLogout = async () => {
-    try {
-      await axios.post("https://api.example.com/logout");
-      setLogoutVisible(false);
-      Alert.alert("Success", "You have been logged out.");
-      navigation.replace("Login");
-    } catch (error) {
-      console.error("Logout failed:", error);
-      Alert.alert("Error", "Logout failed. Please try again.");
-    }
+    await AsyncStorage.removeItem("userData");
+    navigation.replace("Login");
   };
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="white" />
@@ -47,31 +60,42 @@ const ProfileScreen = () => {
         <Text style={styles.headerTitle}>Profile</Text>
         <View style={{ width: 24 }} />
       </View>
-      <ScrollView>
-        {profile && (
-          <View style={styles.profileContainer}>
-            <Image source={{ uri: profile.image }} style={styles.profileImage} />
-            <Text style={styles.profileName}>{profile.name}</Text>
+
+      {/* Profile Data using FlatList to prevent VirtualizedLists warning */}
+      <FlatList
+        data={profile ? [profile] : []}
+        keyExtractor={() => "profile-data"}
+        renderItem={({ item }) => (
+          <View>
+            <View style={styles.profileContainer}>
+              <Image source={{ uri: item.image }} style={styles.profileImage} />
+              <Text style={styles.profileName}>{item.name}</Text>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Full Name</Text>
+              <TextInput style={styles.input} value={item.name || ""} editable={false} />
+
+              <Text style={styles.label}>Email</Text>
+              <TextInput style={styles.input} value={emailDataUpdate || ""} editable={false} />
+
+              <Text style={styles.label}>Phone Number</Text>
+              <TextInput style={styles.input} value={item.phone || ""} editable={false} />
+
+              <Text style={styles.label}>Address</Text>
+              <TextInput style={styles.input} value={item.address || ""} editable={false} />
+            </View>
+
+            <TouchableOpacity style={styles.logoutButton} onPress={() => setLogoutVisible(true)}>
+              <MaterialCommunityIcons name="logout" size={20} color="blue" />
+              <Text style={styles.logoutText}>Logout</Text>
+            </TouchableOpacity>
           </View>
         )}
+        ListEmptyComponent={<Text style={styles.loadingText}>Loading...</Text>}
+      />
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Full Name</Text>
-          <TextInput style={styles.input} value={profile?.name} editable={false} />
-          <Text style={styles.label}>Email</Text>
-          <TextInput style={styles.input} value={profile?.email} editable={false} />
-          <Text style={styles.label}>Phone Number</Text>
-          <TextInput style={styles.input} value={profile?.phone} editable={false} />
-          <Text style={styles.label}>Address</Text>
-          <TextInput style={styles.input} value={profile?.address} editable={false} />
-        </View>
-
-        <TouchableOpacity style={styles.logoutButton} onPress={() => setLogoutVisible(true)}>
-          <MaterialCommunityIcons name="logout" size={20} color="blue" />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
+      {/* Logout Modal */}
       <Modal transparent visible={logoutVisible} animationType="fade">
         <View style={styles.modalBackground}>
           <View style={styles.modalContainer}>
@@ -99,6 +123,7 @@ const styles = StyleSheet.create({
   profileContainer: { alignItems: "center", marginTop: 20 },
   profileImage: { width: 90, height: 90, borderRadius: 50 },
   profileName: { fontSize: 18, fontWeight: "bold", marginTop: 10 },
+  loadingText: { textAlign: "center", fontSize: 16, marginTop: 20 },
   inputContainer: { paddingHorizontal: 20, marginTop: 20 },
   label: { fontSize: 16, fontWeight: "bold", marginBottom: 5 },
   input: { backgroundColor: "#E7EDFF", padding: 15, borderRadius: 10, marginBottom: 15 },
@@ -111,7 +136,7 @@ const styles = StyleSheet.create({
   cancelButton: { backgroundColor: "#E7EDFF", padding: 10, borderRadius: 35, flex: 1, alignItems: "center", marginRight: 10 },
   cancelText: { color: "black", fontWeight: "bold" },
   yesButton: { backgroundColor: "blue", padding: 10, borderRadius: 35, flex: 1, alignItems: "center" },
-  yesText: { color: "white", fontWeight: "bold" }
+  yesText: { color: "white", fontWeight: "bold" },
 });
 
 export default ProfileScreen;

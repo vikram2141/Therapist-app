@@ -10,6 +10,16 @@ const screenWidth = Dimensions.get('window').width;
 const CollectDataScreen = () => {
   const navigation = useNavigation();
 
+  const chartData = {
+    labels: ["12:20:12", "12:21:14", "12:22:14", "12:22:50", "12:23:24"],
+    datasets: [
+      {
+        data: [20, 45, 28, 80, 99, 43],
+        strokeWidth: 2,
+      },
+    ],
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -35,28 +45,41 @@ const CollectDataScreen = () => {
         </View>
 
         {/* Line Chart */}
-        <LineChart
-          data={{
-            labels: ["12:20", "12:21", "12:22", "12:23", "12:24"],
-            datasets: [{ data: [10, 90, 20, 60, 30] }]
-          }}
-          width={screenWidth - 40}
-          height={220}
-          chartConfig={{
-            backgroundColor: "#ffffff",
-            backgroundGradientFrom: "#ffffff",
-            backgroundGradientTo: "#ffffff",
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(0, 0, 255, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            style: { borderRadius: 16 }
-          }}
-          style={styles.chart}
-        />
+        <View style={styles.chartContainer}>
+          <LineChart
+            data={chartData}
+            width={screenWidth - 20}
+            height={220}
+            chartConfig={{
+              backgroundColor: '#f0f5ff',
+              backgroundGradientFrom: '#f0f5ff',
+              backgroundGradientTo: '#f0f5ff',
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              style: { borderRadius: 0 },
+              propsForDots: { r: "6", strokeWidth: "2", stroke: "#007AFF" },
+              propsForBackgroundLines: { stroke: "#d0d0ff", strokeDasharray: "5, 5" },
+              useShadowColorFromDataset: false
+            }}
+            bezier
+            style={styles.chart}
+            withInnerLines={true}
+            withOuterLines={false}
+            withVerticalLines={true}
+            withHorizontalLines={true}
+            fromZero={true}
+            yAxisLabel=""
+            yAxisSuffix=""
+            yAxisInterval={20}
+            segments={5}
+          />
+          
+        </View>
 
         {/* Pagination */}
         <View style={styles.pagination}>
-          {[1, 2, 3, 4, 5].map((page, index) => (
+          {[1, 1, -1, 1, -1].map((page, index) => (
             <TouchableOpacity key={index} style={styles.pageButton}>
               <Text style={styles.pageButtonText}>{page}</Text>
             </TouchableOpacity>
@@ -95,49 +118,19 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
   },
-  back: {
-    position: 'absolute',
-    left: 20,
-  },
-  logoText: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
-  card: {
-    backgroundColor: 'white',
-    padding: 15,
-    margin: 10,
-    borderRadius: 10,
-    elevation: 3,
-  },
-  cardContent: {
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  infoText: {
-    fontSize: 14,
-    marginBottom: 5,
-  },
-  label: {
-    fontWeight: 'bold',
-  },
-  pagination: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
-    marginTop: 10 
-  },
-  pageButton: {
-    backgroundColor: '#007bff',
-    padding: 8,
-    marginHorizontal: 4,
-    borderRadius: 5,
-  },
-  pageButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
+  back: { position: 'absolute', left: 20 },
+  logoText: { fontSize: 22, fontWeight: "bold", color: "#FFFFFF" },
+  card: { backgroundColor: 'white', padding: 15, margin: 10, borderRadius: 10, elevation: 3 },
+  cardContent: { flexDirection: 'column', alignItems: 'flex-start' },
+  infoText: { fontSize: 14, marginBottom: 5 },
+  label: { fontWeight: 'bold' },
+  chartContainer: { padding: 10, backgroundColor: 'white', borderRadius: 10, margin: 10 },
+  chart: { marginVertical: 10 },
+  timeCountContainer: { alignItems: 'center', marginTop: 10 },
+  timeCountText: { fontSize: 14, fontWeight: 'bold' },
+  pagination: { flexDirection: 'row', justifyContent: 'center', marginTop: -10,marginRight:180 },
+  pageButton: { backgroundColor: '#007bff', padding: 8, marginHorizontal: 4, borderRadius: 5 },
+  pageButtonText: { color: 'white', fontWeight: 'bold' },
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
