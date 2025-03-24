@@ -21,10 +21,20 @@ const { width } = Dimensions.get('window');
 const GoalsList = () => {
   const [activeTab, setActiveTab] = useState('Details');
   const [logoutVisible, setLogoutVisible] = useState(false);
+
+  let type1;
+  
+  let type2;
+  
+  let type3;
  
   
 
   const [graphList, setGraphList] = useState([]);
+  
+  const [graphList2, setGraphList2] = useState([]);
+  
+  const [graphList3, setGraphList3] = useState([]);
 
 
   // var lableList = ["12/20/12", "12/21/14", "12/22/14", "12/22/50", "12/23/24"];
@@ -34,14 +44,41 @@ const GoalsList = () => {
     labels: ["12/20/12", "12/21/14", "12/22/14", "12/22/50", "12/23/24"],
     datasets: [
       {
-        data:graphList,
+        data: graphList,
         color: () => '#007AFF', // iOS blue color
         strokeWidth: 2
       }
     ],
   };
 
-  const [tableData, setTableData] = useState([]);
+  const chartData2 = {
+    labels: ["12/20/12", "12/21/14", "12/22/14", "12/22/50", "12/23/24"],
+    datasets: [
+      {
+        data: graphList2,
+        color: () => '#007AFF', // iOS blue color
+        strokeWidth: 2
+      }
+    ],
+  };
+
+  
+  const chartData3 = {
+    labels: ["12/20/12", "12/21/14", "12/22/14", "12/22/50", "12/23/24"],
+    datasets: [
+      {
+        data: graphList3,
+        color: () => '#007AFF', // iOS blue color
+        strokeWidth: 2
+      }
+    ],
+  };
+
+  const [tableData, setTableData] = useState([
+    { id: 1, description: 'ABC', value: 0, timeCount: '3 Minutes', hasChart: false },
+    { id: 2, description: 'Gross Motor Imitation (3-2)', value: 0, hasChart: false },
+    { id: 3, description: 'Gross Motor Imitation (1.0 3)', value: 0, hasChart: false },
+  ]);
 
     useEffect(() => {
       getGraphData();
@@ -89,17 +126,30 @@ const GoalsList = () => {
           data: formData
         };
 
-        const graphList = {
-          patientGoals: response.data.patientGoals.map((goal) => ({
-            ...response.data.patientGoals// Spread existing goal properties
-    
-          })),
-        };
+        type1 =  response.data.patientGoals[0].type;
+        
+        type2 =  response.data.patientGoals[1].type;
+        
+        type3 =  response.data.patientGoals[2].type;
 
-        setGraphList(graphList);
+        console.log('laskdjflksdjksdjfsldajfsdal', type1);
+        console.log('laskdjflksdjksdjfsldajfsdal', type2);
+        console.log('laskdjflksdjksdjfsldajfsdal', type3);
 
-      console.log('vsszvszvzcVZC', graphList);
+        setGraphList(prevGraph => [
+          ...prevGraph, 
+          ...response.data.patientGoals[0].trials.map(trial => trial.step_value)
+      ]);
       
+      setGraphList2(prevGraph => [
+        ...prevGraph, 
+        ...response.data.patientGoals[1].trials.map(trial => trial.step_value)
+    ]);
+    
+    setGraphList3(prevGraph => [
+      ...prevGraph, 
+      ...response.data.patientGoals[2].trials.map(trial => trial.step_value)
+  ]);
 
       const goals = response.data.patientGoals.map((goal, index) => ({
         id: index + 1,
@@ -171,6 +221,10 @@ const GoalsList = () => {
       return newData;
     });
   };
+
+
+
+
 
   const renderActionButtons = (index) => {
     return (
@@ -253,11 +307,7 @@ const GoalsList = () => {
         <Text style={[styles.tableHeaderText, { flex: 0.7 }]}>Graph</Text>
         <Text style={[styles.tableHeaderText, { flex: 0.7 }]}>Action</Text>
       </View>
-      <View style={styles.totalTimeContainer}>
-      <Text style={styles.totalTimeText}>{graphList.length}</Text>
 
-
-      </View>
       <ScrollView style={styles.scrollView}>
         {/* Table Rows */}
         {tableData.map((item, index) => (
@@ -276,21 +326,12 @@ const GoalsList = () => {
                 {renderActionButtons(index)}
               </View>
             </View>
- 
+
             {/* Chart for first item */}
             {item.hasChart && (
               <View style={styles.chartContainer}>
                 <LineChart
-                  data={{
-                    labels: ["12/20/12", "12/21/14", "12/22/14", "12/22/50", "12/23/24"],
-                    datasets: [
-                      {
-                        data:[graphList.patientGoals[0].id],
-                        color: () => '#007AFF', // iOS blue color
-                        strokeWidth: 2
-                      }
-                    ],
-                  }}
+                  data={index == 0 ? chartData : index == 1 ? chartData2 : chartData3}
                   width={width - 20}
                   height={220}
                   chartConfig={{
