@@ -25,7 +25,9 @@ export default function App() {
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen}options={{ headerShown: false }} />
         <Stack.Screen name="OTPVerification" component={OTPVerificationScreen}options={{ headerShown: false }} />
         <Stack.Screen name="CreateNewPassword" component={CreateNewPasswordScreen}options={{ headerShown: false }} />
-        <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }}/> 
+        {/* <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }}/>  */}
+        <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }}/>
+        {/* <Stack.Screen name="GoalsListScreen" component={GoalsListScreen} /> */}
         <Stack.Screen name="Profile" component={ProfileScreen}options={{ headerShown: false }} />
         <Stack.Screen name="GoalsListDetail" component={GoalsListDetailScreen} options={{ headerShown: false }} />
         <Stack.Screen name="GoalsListNotes" component={GoalsListNotesScreen} options={{ headerShown: false }} />

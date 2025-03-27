@@ -1,122 +1,157 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import { 
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert 
+} from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
+import HomeScreen from "./HomeScreen";
 
 export default function GoalsListScreen({ route }) {
   const [activeTab, setActiveTab] = useState("Details");
   const [profileData, setProfileData] = useState(null);
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigation = useNavigation();
-  const { appointment } = route.params;
+  const { appointment } = route.params || {};
 
   useEffect(() => {
-    setProfileData(appointment);
+    if (appointment) {
+      setProfileData(appointment);
+      setLoading(false);
+    }
   }, [appointment]);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
+      if (!appointment?.user?.api_token) {
+        console.warn("No API token found, skipping request.");
+        return;
+      }
+
+      setLoading(true);
       try {
         const response = await axios.get("https://therapy.kidstherapy.me/api/profile", {
           headers: {
             Accept: "application/json",
-            Authorization: `Bearer ${appointment?.user?.api_token}`, // Ensure userData is correctly referenced
+            Authorization: `Bearer ${appointment.user.api_token}`,
           },
         });
         setUser(response.data);
+        setError(null);
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        console.error("API Error:", error);
+        setError(error.response?.data?.message || "Failed to load profile data.");
+        Alert.alert("Error", "Failed to fetch user profile. Please try again later.");
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchUserProfile();
-  }, []);
+  }, [appointment]);
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.back}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={25} color="#fff" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.back} onPress={() => navigation.goBack(HomeScreen)}>
+          <Ionicons name="arrow-back" size={25} color="#fff" />
+        </TouchableOpacity>
         <Text style={styles.logoText}>Goals List</Text>
       </View>
 
       {/* Sync Button */}
-      <TouchableOpacity style={styles.syncButton}>
+      <TouchableOpacity style={styles.syncButton} onPress={() => Alert.alert("Sync", "Syncing data...")}>
         <Text style={styles.syncText}>Sync</Text>
       </TouchableOpacity>
 
       {/* Tab Buttons */}
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.activeButton}>
+        <TouchableOpacity 
+          style={activeTab === "Details" ? styles.activeButton : styles.inactiveButton} 
+          onPress={() => setActiveTab("Details")}
+        >
           <Text style={styles.buttonText}>Details</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.inactiveButton} onPress={() => navigation.navigate("GoalsListNotes")}>
+        <TouchableOpacity 
+          style={styles.inactiveButton} 
+          onPress={()=>{
+            navigation.navigate("GoalsListNotes", { profileData })
+          }}
+        >
           <Text style={styles.inactiveText}>Notes</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.inactiveButton} onPress={() => navigation.navigate("GoalsListVerify")}>
+        <TouchableOpacity 
+          style={styles.inactiveButton} 
+          onPress={() => navigation.navigate("GoalsListVerify")}
+        >
           <Text style={styles.inactiveText}>Verify</Text>
         </TouchableOpacity>
       </View>
 
       {/* Content Section */}
       <ScrollView style={styles.contentContainer}>
-        <View style={styles.infoBox}>
-          {profileData ? (
-            <>
-              <View style={styles.row}>
-                <Text style={styles.label}>Patient name:</Text>
-                <Text style={styles.value}>{profileData.user?.name || "N/A"}</Text>
-              </View>
-
-              
-              <View style={styles.row}>
-                <Text style={styles.label}>Doctor name:</Text>
-                <Text style={styles.value}>{user?.name || "Pallavi Nathani"}</Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Therapy:</Text>
-                <Text style={styles.value}>{profileData.appointment_status?.name || "N/A"}</Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Date:</Text>
-                <Text style={styles.value}>{profileData.appointment_date || "N/A"}</Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Time:</Text>
-                <Text style={styles.value}>
-                  {profileData.start_time && profileData.end_time
-                    ? `${profileData.start_time} To ${profileData.end_time}`
-                    : "N/A"}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Supervisor:</Text>
-                <Text style={styles.value}>{profileData.supervisor_therapist || "N"}</Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Notes:</Text>
-                <Text style={styles.value}>{profileData.problem || "null"}</Text>
-              </View>
-            </>
-          ) : (
-            <Text>Loading...</Text>
-          )}
-        </View>
+        {loading ? (
+          <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+        ) : error ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : profileData ? (
+          <View style={styles.infoBox}>
+            <View style={styles.row}>
+              <Text style={styles.label}>Patient name:</Text>
+              <Text style={styles.value}>{profileData.user?.name || "N/A"}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>Doctor name:</Text>
+              <Text style={styles.value}>{user?.name || "Pallavi Nathani"}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>Therapy:</Text>
+              <Text style={styles.value}>{profileData.appointment_type.name || "N/A"}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>Date:</Text>
+              <Text style={styles.value}>{profileData.appointment_date || "N/A"}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>Time:</Text>
+              <Text style={styles.value}>
+                {profileData.start_time && profileData.end_time 
+                  ? `${profileData.start_time} To ${profileData.end_time}` 
+                  : "N/A"}
+              </Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>Status:</Text>
+              <Text style={styles.value}>{profileData.appointment_status?.name || "N/A"}</Text>
+            </View>
+            {/* <View style={styles.row}>
+              <Text style={styles.label}>Appointment Id:</Text>
+              <Text style={styles.value}>{profileData.appointment_status?.id || "N/A"}</Text>
+            </View> */}
+            <View style={styles.row}>
+              <Text style={styles.label}>Notes:</Text>
+              <Text style={styles.value}>{profileData.problem || "N/A"}</Text>
+            </View>
+          </View>
+        ) : (
+          <Text style={styles.errorText}>No appointment data available</Text>
+        )}
       </ScrollView>
 
       {/* Collect Data Button */}
-      <TouchableOpacity style={styles.collectButton}>
-        <Text style={styles.collectButtonText}>Collect Data</Text>
-      </TouchableOpacity>
+      <TouchableOpacity 
+  style={styles.collectButton} 
+  onPress={() => navigation.navigate("CollectData")}
+>
+  <Text style={styles.collectButtonText}>Send for Signin</Text>
+</TouchableOpacity>
+
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

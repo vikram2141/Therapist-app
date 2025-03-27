@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, Modal, FlatList } from "react-native";
+import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, Modal, FlatList, Alert } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import FormData from "form-data";
 
 const ProfileScreen = () => {
   const [logoutVisible, setLogoutVisible] = useState(false);
@@ -20,24 +19,22 @@ const ProfileScreen = () => {
   const fetchProfile = async () => {
     try {
       const user = await AsyncStorage.getItem("userData");
-      if (!user) throw new Error("User not found in storage");
+      if (!user) {
+        Alert.alert("Error", "User not found, please log in again.");
+        navigation.replace("Login");
+        return;
+      }
 
       const userData = JSON.parse(user);
       setEmailDataUpdate(userData.email);
 
-      let data = new FormData();
-      let config = {
-        method: "get",
-        url: "https://therapy.kidstherapy.me/api/profile",
+      const response = await axios.get("https://therapy.kidstherapy.me/api/profile", {
         headers: {
           Accept: "application/json",
-          "Content-Type": "multipart/form-data", // Fixed Content-Type issue
           Authorization: `Bearer ${userData.api_token}`,
         },
-        data: data,
-      };
+      });
 
-      const response = await axios.request(config);
       console.log("Profile Data:", response.data);
       setProfile(response.data);
     } catch (error) {
@@ -61,14 +58,17 @@ const ProfileScreen = () => {
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Profile Data using FlatList to prevent VirtualizedLists warning */}
+      {/* Profile Data */}
       <FlatList
         data={profile ? [profile] : []}
-        keyExtractor={() => "profile-data"}
+        keyExtractor={(item) => item.id?.toString() || "profile-data"} // Ensure a unique key
         renderItem={({ item }) => (
           <View>
             <View style={styles.profileContainer}>
-              <Image source={{ uri: item.image }} style={styles.profileImage} />
+              <Image
+                source={{ uri: item.image || "https://via.placeholder.com/150" }} // Default image
+                style={styles.profileImage}
+              />
               <Text style={styles.profileName}>{item.name}</Text>
             </View>
 

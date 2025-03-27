@@ -164,7 +164,7 @@ const HomeScreen = () => {
       <Text style={styles.calendarTitle}>Calendar</Text>
 
       {/* Appointments List */}
-      <FlatList
+      <FlatList    style={styles.FlatList}
         data={appointments}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderAppointment}
@@ -272,8 +272,9 @@ const styles = StyleSheet.create({
     marginRight:20,
     alignItems:"center",
     top:-20,
-    
-
+    },
+    FlatList:{
+      marginBottom:35,
     },
     logoButton: {
       alignItems: 'center',
