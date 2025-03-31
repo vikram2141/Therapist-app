@@ -1072,6 +1072,8 @@ const styles = StyleSheet.create({
     color: "black",
     fontWeight: "bold",
   },
+
+  
   yesButton: {
     backgroundColor: "blue",
     padding: 10,
