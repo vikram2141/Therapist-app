@@ -1,7 +1,6 @@
 "use client"
 
 import React from "react"
-
 import { useState, useEffect, useRef } from "react"
 import {
   View,
@@ -31,7 +30,7 @@ const GoalsListNotesScreen = ({ route }) => {
   const [tableData, setTableData] = useState([])
   const [data, setData] = useState([])
   const [graphLists, setGraphLists] = useState([[], [], []])
-  const [pagesLists, setPagesLists] = useState([[1,-1], [], []])
+  const [pagesLists, setPagesLists] = useState([[1, -1], [], []])
   const [time, setTime] = useState(0)
   const [isRunning, setIsRunning] = useState(false)
   const [activeTimerIndex, setActiveTimerIndex] = useState(null)
@@ -51,42 +50,29 @@ const GoalsListNotesScreen = ({ route }) => {
     }
   }, [])
 
-  // Run when screen comes into focus
+  // Run when screen comes into focus with better error handling
   useFocusEffect(
     React.useCallback(() => {
       isMounted.current = true
       setGraphLists([[], [], []])
       setPagesLists([[], [], []])
       setLabels([])
-      getGraphData()
+
+      // Check if we have valid route params before fetching data
+      if (route?.params?.profileData?.id) {
+        console.log("Found valid appointment ID:", route.params.profileData.id)
+        getGraphData()
+      } else {
+        console.log("No valid appointment ID found, using default data")
+        // Set empty data or mock data for development
+        setTableData([])
+      }
 
       return () => {
         isMounted.current = false
       }
     }, []),
   )
-
-  const handleStep = (type) => {
-    if (type !== "chartVisible") {
-      const newDate = new Date()
-      const formattedTime = newDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-
-      // Add new timestamp to labels
-      setLabels((prevLabels) => {
-        const newLabels = [...prevLabels, formattedTime]
-        // Keep only the last 10 labels to prevent overcrowding
-        return newLabels.length > 10 ? newLabels.slice(newLabels.length - 10) : newLabels
-      })
-
-      const step_value = type === "countAdd" ? 10 : -10
-
-      setGraphLists((prevData) => {
-        const updatedData = [...prevData]
-        updatedData[updatedData.length - 1] = [...(updatedData[updatedData.length - 1] || []), step_value]
-        return updatedData
-      })
-    }
-  }
 
   const graphValueUpdate = (index, type, item) => {
     console.log(`graphValueUpdate called with index: ${index}, type: ${type}, item type: ${item.type}`)
@@ -112,25 +98,21 @@ const GoalsListNotesScreen = ({ route }) => {
 
           newData[index] = { ...newData[index], value: newValue }
 
-          let positiveValue = tableData[index].positiveValue;
-
-
-          console.log('positiveValue:', tableData[index].positiveValue);
-          console.log('negativeValue:', tableData[index].negativeValue);
+          const positiveValue = tableData[index].positiveValue
 
           // Calculate step_value
-          let step_value = tableData[index].positiveValue + tableData[index].negativeValue;
+          let step_value = tableData[index].positiveValue + tableData[index].negativeValue
 
           // Modify step_value based on type
-          step_value = type === "countAdd" ? step_value + 1 : step_value - 1;
+          step_value = type === "countAdd" ? step_value + 1 : step_value - 1
 
           // Create API data object
           const data = {
             goal_id: item.totData.id,
             type: item.totData.type,
             step: type === "countAdd" ? 1 : -1,
-            step_value: step_value
-          };
+            step_value: step_value,
+          }
 
           callApi(data, index)
         }
@@ -148,28 +130,21 @@ const GoalsListNotesScreen = ({ route }) => {
 
           newData[index] = { ...newData[index], value: newValue }
 
-          let positiveValue = tableData[index].positiveValue;
-
-
-          console.log('positiveValue:', tableData[index].positiveValue);
-          console.log('negativeValue:', tableData[index].negativeValue);
+          const positiveValue = tableData[index].positiveValue
 
           // Calculate step_value
-          let step_value = tableData[index].positiveValue + tableData[index].negativeValue;
+          let step_value = tableData[index].positiveValue + tableData[index].negativeValue
 
           // Modify step_value based on type
-          step_value = type === "countAdd" ? step_value + 1 : step_value - 1;
+          step_value = type === "countAdd" ? step_value + 1 : step_value - 1
 
           // Create API data object
           const data = {
             goal_id: item.totData.id,
             type: item.totData.type,
             step: type === "countAdd" ? 1 : -1,
-            step_value: step_value
-          };
-
-          console.log("API Data:", data);
-
+            step_value: step_value,
+          }
 
           callApi(data, index)
         }
@@ -186,7 +161,6 @@ const GoalsListNotesScreen = ({ route }) => {
               ...prev,
               [item.totData.id]: time,
             }))
-
           }
           const data = {
             goal_id: item.totData.id,
@@ -215,17 +189,13 @@ const GoalsListNotesScreen = ({ route }) => {
       const token = userData?.api_token
       if (!token) throw new Error("No token found")
 
-
       const data = new FormData()
 
       if (goalData.goal_id != null) data.append("goal_id", goalData.goal_id.toString())
-      if (goalData.step != null) data.append("steps", goalData.step.toString())
+      if (goalData.step != null) data.append("step", goalData.step.toString())
       if (goalData.step_value != null) data.append("step_value", goalData.step_value.toString())
       if (goalData.type) data.append("type", goalData.type)
       if (goalData.value != null) data.append("value", goalData.value.toString())
-
-      console.log('data is print of request ', data);
-
 
       const config = {
         method: "post",
@@ -313,6 +283,172 @@ const GoalsListNotesScreen = ({ route }) => {
     }
   }
 
+  const getGraphData = async (openValue) => {
+    try {
+      if (!isMounted.current) return
+
+      setGraphLists([[], [], []])
+      setLabels([])
+
+      const storedUserData = await AsyncStorage.getItem("userData")
+      if (!storedUserData) throw new Error("User data not found")
+
+      const userData = JSON.parse(storedUserData)
+      const token = userData?.api_token
+      if (!token) throw new Error("No token found")
+
+      // Check if route and params exist
+      if (!route || !route.params) {
+        console.log("No route params available, using default data")
+        // Set empty data when no route params
+        setTableData([])
+        return
+      }
+
+      // Check if profileData exists
+      if (!route.params.profileData) {
+        console.log("No profileData available, using default data")
+        // Set empty data when no profileData
+        setTableData([])
+        return
+      }
+
+      // Check if profileData.id exists
+      const appointmentId = route.params.profileData.id
+      if (!appointmentId) {
+        console.log("No appointment ID available, using default data")
+        // Set empty data when no appointment ID
+        setTableData([])
+        return
+      }
+
+      const formData = new FormData()
+      formData.append("appointment_id", `${appointmentId}`)
+
+      const config = {
+        method: "post",
+        url: "https://therapy.kidstherapy.me/api/appointment-goals",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+        data: formData,
+      }
+
+      const response = await axios(config)
+      const responseData = response.data
+      const patientGoals = responseData.patientGoals || []
+
+      console.log("Patient goals fetched:", patientGoals.length)
+
+      // Create separate arrays for each goal type
+      const boolGraphData = []
+      const percentageGraphData = []
+      const timerGraphData = []
+
+      // Create a single set of labels from the most recent goal with the most trials
+      let maxTrials = 0
+      let labelsSource = null
+
+      patientGoals.forEach((goal) => {
+        if (goal.trials && goal.trials.length > maxTrials) {
+          maxTrials = goal.trials.length
+          labelsSource = goal
+        }
+      })
+
+      // Generate labels from timestamps in the trials
+      if (labelsSource && labelsSource.trials && labelsSource.trials.length > 0) {
+        const newLabels = labelsSource.trials.slice(-10).map((trial) => {
+          const time = trial.updated_at
+          return time.substring(0, 5) // Extract HH:MM from the timestamp
+        })
+        setLabels(newLabels)
+      }
+
+      // Process each goal and categorize by type
+      patientGoals.forEach((goal) => {
+        if (!goal.trials) {
+          console.log("Goal has no trials:", goal)
+          return
+        }
+
+        const trialValues = goal.trials.map((trial) => Number.parseFloat(trial.step_value))
+
+        if (goal.type === "bool") {
+          boolGraphData.push(...trialValues)
+        } else if (goal.type === "percentage") {
+          percentageGraphData.push(...trialValues)
+        } else if (goal.type === "timer") {
+          timerGraphData.push(...trialValues)
+
+          // Store the latest timer value
+          if (goal.trials.length > 0) {
+            const latestTrial = goal.trials[goal.trials.length - 1]
+            setTimerValues((prev) => ({
+              ...prev,
+              [goal.id]: Number.parseInt(latestTrial.step_value) || 0,
+            }))
+          }
+        }
+      })
+
+      // Update graph lists with categorized data
+      setGraphLists([boolGraphData, percentageGraphData, timerGraphData])
+
+      // Process for pagination display
+      const updatedLists = [[], [], []]
+      patientGoals.forEach((goal) => {
+        if (!goal.trials) return
+
+        goal.trials.forEach((trial) => {
+          const typeIndex = goal.type === "bool" ? 0 : goal.type === "percentage" ? 1 : 2
+          updatedLists[typeIndex].push(trial.value)
+        })
+      })
+
+      setPagesLists(updatedLists)
+
+      // Update table data
+      const goals = patientGoals.map((goal, index) => {
+        // Get the latest trial value for timer type
+        let timerValue = 0
+        if (goal.type === "timer" && goal.trials && goal.trials.length > 0) {
+          timerValue = Number.parseInt(goal.trials[goal.trials.length - 1].step_value) || 0
+        }
+
+        return {
+          id: index + 1,
+          subDescription: goal.goal,
+          description: goal.goal_category?.category || "Other",
+          value:
+            goal.type === "bool"
+              ? goal.positive_count - goal.negative_count
+              : goal.type === "percentage"
+                ? Number.parseFloat(
+                    goal.trials && goal.trials.length > 0 ? goal.trials[goal.trials.length - 1].step_value : 0,
+                  )
+                : goal.value || "00:00:00",
+          timeCount: goal.timeCount || "",
+          hasChart: openValue != null ? openValue === index : false,
+          type: goal.type,
+          totData: goal,
+          stepValue: goal.trials && goal.trials.length > 0 ? goal.trials[goal.trials.length - 1].step_value : 0,
+          positiveValue: goal.positive_count || 0,
+          negativeValue: goal.negative_count || 0,
+          timerValue: timerValue,
+        }
+      })
+
+      setTableData(goals)
+    } catch (error) {
+      console.error("Error fetching data:", error.response ? error.response.data : error.message)
+      // Set empty data on error
+      setTableData([])
+    }
+  }
+
   // Timer effect
   useEffect(() => {
     let interval
@@ -374,9 +510,7 @@ const GoalsListNotesScreen = ({ route }) => {
 
         {item.type === "timer" && (
           <View style={styles.valueDisplay}>
-            <Text style={styles.valueText}>
-              {formatTime(time)}
-            </Text>
+            <Text style={styles.valueText}>{formatTime(time)}</Text>
           </View>
         )}
 
@@ -437,7 +571,6 @@ const GoalsListNotesScreen = ({ route }) => {
     // Add logout logic here (e.g., clearing auth state)
   }
 
-
   const renderChart = (index) => {
     const scrollViewRef = React.createRef() // Create a ref for ScrollView
 
@@ -446,8 +579,7 @@ const GoalsListNotesScreen = ({ route }) => {
 
     const chartData = graphLists[dataIndex] || []
 
-    const displayData =
-      item.type === "timer" ? chartData.map((val) => val / 100) : chartData
+    const displayData = item.type === "timer" ? chartData.map((val) => val / 100) : chartData
 
     // Determine the dynamic width based on data points (e.g., 50px per data point)
     const dynamicWidth = Math.max(width, displayData.length * 50)
@@ -462,11 +594,7 @@ const GoalsListNotesScreen = ({ route }) => {
     return (
       <View style={styles.chartContainer}>
         {displayData.length > 0 ? (
-          <ScrollView
-            ref={scrollViewRef}
-            horizontal
-            showsHorizontalScrollIndicator={true}
-          >
+          <ScrollView ref={scrollViewRef} horizontal showsHorizontalScrollIndicator={true}>
             <View>
               <LineChart
                 data={{
@@ -513,14 +641,11 @@ const GoalsListNotesScreen = ({ route }) => {
         ) : (
           <Text style={{ textAlign: "center", fontSize: 16, color: "gray", marginTop: 20 }}>No Data Found</Text>
         )}
-         {pagesLists[dataIndex] && pagesLists[dataIndex].length > 0 && (
+        {pagesLists[dataIndex] && pagesLists[dataIndex].length > 0 && (
           <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
             <View style={styles.pagination}>
               {pagesLists[dataIndex].map((page, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pageButton, { backgroundColor:  "#0000FF"}]}
-                >
+                <TouchableOpacity key={idx} style={[styles.pageButton, { backgroundColor: "#0000FF" }]}>
                   <Text style={styles.pageButtonText}>{page === 1 ? page : page}</Text>
                 </TouchableOpacity>
               ))}
@@ -529,140 +654,6 @@ const GoalsListNotesScreen = ({ route }) => {
         )}
       </View>
     )
-  }
-
-
-  const getGraphData = async (openValue) => {
-    try {
-      if (!isMounted.current) return
-
-      setGraphLists([[], [], []])
-      setLabels([])
-
-      const storedUserData = await AsyncStorage.getItem("userData")
-      if (!storedUserData) throw new Error("User data not found")
-
-      const userData = JSON.parse(storedUserData)
-      const token = userData?.api_token
-      if (!token) throw new Error("No token found")
-
-      const formData = new FormData()
-      formData.append("appointment_id", `${route.params.profileData.id}`)
-
-      const config = {
-        method: "post",
-        url: "https://therapy.kidstherapy.me/api/appointment-goals",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-        data: formData,
-      }
-
-      const response = await axios(config)
-      const responseData = response.data
-      const patientGoals = responseData.patientGoals || []
-
-      console.log("Patient goals fetched:", patientGoals.length)
-
-      // Create separate arrays for each goal type
-      const boolGraphData = []
-      const percentageGraphData = []
-      const timerGraphData = []
-
-      // Create a single set of labels from the most recent goal with the most trials
-      let maxTrials = 0
-      let labelsSource = null
-
-      patientGoals.forEach((goal) => {
-        if (goal.trials.length > maxTrials) {
-          maxTrials = goal.trials.length
-          labelsSource = goal
-        }
-      })
-
-      // Generate labels from timestamps in the trials
-      if (labelsSource && labelsSource.trials.length > 0) {
-        const newLabels = labelsSource.trials.slice(-10).map((trial) => {
-          const time = trial.updated_at
-          return time.substring(0, 5) // Extract HH:MM from the timestamp
-        })
-        setLabels(newLabels)
-      }
-
-      // Process each goal and categorize by type
-      patientGoals.forEach((goal) => {
-        const trialValues = goal.trials.map((trial) => Number.parseFloat(trial.step_value))
-
-        if (goal.type === "bool") {
-          boolGraphData.push(...trialValues)
-        } else if (goal.type === "percentage") {
-          percentageGraphData.push(...trialValues)
-        } else if (goal.type === "timer") {
-          timerGraphData.push(...trialValues)
-
-          // Store the latest timer value
-          if (goal.trials.length > 0) {
-            const latestTrial = goal.trials[goal.trials.length - 1]
-            setTimerValues((prev) => ({
-              ...prev,
-              [goal.id]: Number.parseInt(latestTrial.step_value) || 0,
-            }))
-          }
-        }
-      })
-
-      // Update graph lists with categorized data
-      setGraphLists([boolGraphData, percentageGraphData, timerGraphData])
-
-      // Process for pagination display
-      const updatedLists = [[], [], []]
-      patientGoals.forEach((goal) => {
-        goal.trials.forEach((trial) => {
-        
-            const typeIndex = goal.type === "bool" ? 0 : goal.type === "percentage" ? 1 : 2
-            updatedLists[typeIndex].push(trial.value)
-          
-        })
-      })
-
-      setPagesLists(updatedLists)
-
-
-      // Update table data
-      const goals = patientGoals.map((goal, index) => {
-        // Get the latest trial value for timer type
-        let timerValue = 0
-        if (goal.type === "timer" && goal.trials.length > 0) {
-          timerValue = Number.parseInt(goal.trials[goal.trials.length - 1].step_value) || 0
-        }
-
-        return {
-          id: index + 1,
-          subDescription: goal.goal,
-          description: goal.goal_category?.category || "Other",
-          value:
-            goal.type === "bool"
-              ? goal.positive_count - goal.negative_count
-              : goal.type === "percentage"
-                ? Number.parseFloat(goal.trials.length > 0 ? goal.trials[goal.trials.length - 1].step_value : 0)
-                : goal.value || "00:00:00",
-          timeCount: goal.timeCount || "",
-          hasChart: openValue != null ? openValue === index : false,
-          type: goal.type,
-          totData: goal,
-          stepValue: goal.trials.length > 0 ? goal.trials[goal.trials.length - 1].step_value : 0,
-          positiveValue: goal.positive_count,
-          negativeValue: goal.negative_count,
-          timerValue: timerValue,
-        }
-      })
-
-      setTableData(goals)
-    } catch (error) {
-      console.error("Error fetching data:", error.response ? error.response.data : error.message)
-    }
   }
 
   return (
@@ -707,41 +698,50 @@ const GoalsListNotesScreen = ({ route }) => {
       </View>
 
       <ScrollView style={styles.scrollView}>
-        {/* Table Rows */}
-        {tableData.map((item, index) => (
-          <View key={item.id}>
-            {/* Table Row */}
-            <View style={styles.tableRow}>
-              {/* Description Column */}
-              <View style={{ flex: 2 }}>
-                <Text style={styles.descriptionText}>{item.description}</Text>
-                {item.subDescription && <Text style={styles.subDescriptionText}>{item.subDescription}</Text>}
-                <Text style={styles.Dtext}>
-                  {item.type === "bool"
-                  ? `(${(item.positiveValue + item.negativeValue) /1 })%`
-                    : item.type === "percentage"
-                      ? `(+${item.positiveValue || 0}, ${item.negativeValue || 0})`
-                      : formatTime2(item.timerValue || 0)}
-                </Text>
+        {tableData.length > 0 ? (
+          tableData.map((item, index) => (
+            <View key={item.id}>
+              {/* Table Row */}
+              <View style={styles.tableRow}>
+                {/* Description Column */}
+                <View style={{ flex: 2 }}>
+                  <Text style={styles.descriptionText}>{item.description}</Text>
+                  {item.subDescription && <Text style={styles.subDescriptionText}>{item.subDescription}</Text>}
+                  <Text style={styles.Dtext}>
+                    {item.type === "bool"
+                      ? `(${(item.positiveValue + item.negativeValue) / 1})%`
+                      : item.type === "percentage"
+                        ? `(+${item.positiveValue || 0}, ${item.negativeValue || 0})`
+                        : formatTime2(item.timerValue || 0)}
+                  </Text>
+                </View>
+                <View style={{ flex: 1, alignItems: "center" }}>{renderValueControl(item, index)}</View>
+                <View style={{ flex: 1.4, flexDirection: "row", justifyContent: "space-around" }}>
+                  {renderActionButtons(index)}
+                </View>
               </View>
 
-              <View style={{ flex: 1, alignItems: "center" }}>{renderValueControl(item, index)}</View>
-              <View style={{ flex: 1.4, flexDirection: "row", justifyContent: "space-around" }}>
-                {renderActionButtons(index)}
-              </View>
+              {/* Dynamic Graph Rendering */}
+              {item.hasChart && renderChart(index)}
             </View>
-
-            {/* Dynamic Graph Rendering */}
-            {item.hasChart && renderChart(index)}
+          ))
+        ) : (
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataText}>No goals data available</Text>
+            <Text style={styles.noDataSubText}>
+              {!route?.params?.profileData?.id
+                ? "Missing appointment information. Please go back and select an appointment."
+                : "No goals found for this appointment."}
+            </Text>
           </View>
-        ))}
+        )}
       </ScrollView>
 
       {/* Logout Confirmation Modal */}
       <Modal transparent={true} visible={logoutVisible} animationType="fade">
         <View style={styles.modalBackground}>
           <View style={styles.modalContainer}>
-            <MaterialCommunityIcons name="" size={40} color="blue" />
+            <MaterialCommunityIcons name="help-circle-outline" size={40} color="#007AFF" />
             <Text style={styles.modalText}>
               Are you sure you want to submit the data? Once submitted, it cannot be edited.
             </Text>
@@ -1055,6 +1055,24 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginVertical: 15,
   },
+  noDataContainer: {
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  noDataText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  noDataSubText: {
+    fontSize: 14,
+    color: "#888",
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
   buttonContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1072,8 +1090,6 @@ const styles = StyleSheet.create({
     color: "black",
     fontWeight: "bold",
   },
-
-  
   yesButton: {
     backgroundColor: "blue",
     padding: 10,
