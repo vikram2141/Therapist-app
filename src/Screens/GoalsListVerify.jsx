@@ -1,55 +1,65 @@
 import React, { useState, useEffect } from "react";
-
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
-import { Dropdown } from 'react-native-element-dropdown';
-import AntDesign from 'react-native-vector-icons/AntDesign';
-import axios from 'axios';
-import HomeScreen from "./HomeScreen";
-
+import { Dropdown } from "react-native-element-dropdown";
+import AntDesign from "react-native-vector-icons/AntDesign";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import FormData from "form-data";
+import Ionicons from "react-native-vector-icons/Ionicons";
 
 const GoalsListVerify = () => {
   const [formData, setFormData] = useState({
     caregiverName: "",
     caregiverSignature: "",
     staffName: "",
-   
   });
 
+  
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const navigation = useNavigation();
 
-  // Fetch therapist list from API
   useEffect(() => {
     const fetchTherapists = async () => {
       try {
-
         const storedUserData = await AsyncStorage.getItem("userData");
-        if (!storedUserData) throw new Error("User data not found");
-    
+        if (!storedUserData) {
+          console.error("User data not found in AsyncStorage");
+          return;
+        }
+
         const userData = JSON.parse(storedUserData);
         const token = userData?.api_token;
-        if (!token) throw new Error("No token found");
-        
+        if (!token) {
+          console.error("No token found in stored user data");
+          return;
+        }
+
+        console.log("Fetching therapists with token:", token);
+
         const response = await axios.get("https://therapy.kidstherapy.me/api/therapist-list", {
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
-        }});
+          },
+        });
 
-        if (response.data && Array.isArray(response.data)) {
-          const formattedData = response.data.map((therapist) => ({
+        console.log("API Response:", response.data);
+
+        if (response.data && Array.isArray(response.data.therapists)) {
+          const formattedData = response.data.therapists.map((therapist) => ({
             label: therapist.name,
             value: therapist.id.toString(),
           }));
           setStaffList(formattedData);
+        } else {
+          console.error("Unexpected API response format:", response.data);
         }
       } catch (error) {
-        console.error("Error fetching therapists:", error);
+        console.error("Error fetching therapists:", error.response?.data || error.message);
       } finally {
         setLoading(false);
       }
@@ -58,60 +68,98 @@ const GoalsListVerify = () => {
     fetchTherapists();
   }, []);
 
-
-
-  
-  const handleGoalsListDetailScreen = () => {
-    navigation.navigate("GoalsListDetail");
-  };
-
   const handleInputChange = (name, value) => {
     setFormData({ ...formData, [name]: value });
+  };
+
+  
+  const handleSave = async () => {
+    try {
+      const storedUserData = await AsyncStorage.getItem("userData");
+      if (!storedUserData) {
+        Alert.alert("Error", "User data not found.");
+        return;
+      }
+
+      const userData = JSON.parse(storedUserData);
+      const token = userData?.api_token;
+      if (!token) {
+        Alert.alert("Error", "No authentication token found.");
+        return;
+      }
+
+      let data = new FormData();
+      data.append("note_id","74"); 
+      data.append("therapist_id_or_staff_ids", formData.staffName);
+      data.append("parent_name", formData.caregiverName);
+      data.append("parent_signature", formData.caregiverSignature);
+
+      let config = {
+        method: "post",
+        url: "https://therapy.kidstherapy.me/api/verify-mark-signin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
+        },
+        data: data,
+      };
+
+      const response = await axios.request(config);
+      console.log("API Response:", response.data);
+
+      if (response.data.success) {
+        Alert.alert("Success", "Data saved successfully!");
+      } else {
+        Alert.alert("Error", response.data.message || "Failed to save data.");
+      }
+    } catch (error) {
+      console.error("Error saving data:", error.response?.data || error.message);
+      Alert.alert("Error", "Something went wrong. Please try again.");
+    }
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack(HomeScreen)}>
-          <Icon name="chevron-left" size={30} color="white" />
-        </TouchableOpacity>
+      <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("Home")}>
+      <Icon name="chevron-left" size={30} color="white" />
+</TouchableOpacity>
+
         <Text style={styles.headerTitle}>Goals List</Text>
       </View>
-    
-  <TouchableOpacity style={styles.syncButton}>
+
+      <TouchableOpacity style={styles.syncButton}>
         <Text style={styles.syncText}>Sync</Text>
       </TouchableOpacity>
 
-      {/* Tab Buttons */}
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.inactiveButton} onPress={handleGoalsListDetailScreen}>
-                   <Text style={styles.inactiveText}>Details</Text>
-                 </TouchableOpacity>
+        <TouchableOpacity style={styles.inactiveButton} onPress={() => navigation.navigate("GoalsListDetail")}>
+          <Text style={styles.inactiveText}>Details</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.inactiveButton} onPress={() => navigation.navigate("GoalsListNotes")}>
           <Text style={styles.inactiveText}>Notes</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.inactiveButton} onPress={() => navigation.navigate("GoalsListVerify")}>
-          <Text style={styles.inactiveText}>Verify</Text>
+        <TouchableOpacity style={styles.activeButton}>
+          <Text style={styles.buttonText}>Verify</Text>
         </TouchableOpacity>
       </View>
 
-
-      {/* Form Inputs */}
-      <Text style={styles.label}>Parent/Caregiver</Text>
+      {/* <Text style={styles.label}>Parent/Caregiver</Text>
       <TextInput
         style={styles.input}
         placeholder="Enter Name"
         value={formData.caregiverName}
         onChangeText={(text) => handleInputChange("caregiverName", text)}
-      />
+      /> */}
 
-      <Text style={styles.label}>Parent/Caregiver Signature</Text>
+      {/* <Text style={styles.label}>Parent/Caregiver Signature</Text>
       <TextInput
         style={styles.input}
         placeholder="Enter Signature"
         value={formData.caregiverSignature}
         onChangeText={(text) => handleInputChange("caregiverSignature", text)}
-      />
+      /> */}
 
       <Text style={styles.label}>Name of Staff</Text>
       {loading ? (
@@ -121,6 +169,7 @@ const GoalsListVerify = () => {
           style={styles.dropdown}
           placeholderStyle={styles.placeholderStyle}
           selectedTextStyle={styles.selectedTextStyle}
+
           inputSearchStyle={styles.inputSearchStyle}
           iconStyle={styles.iconStyle}
           data={staffList}
@@ -131,14 +180,12 @@ const GoalsListVerify = () => {
           placeholder="Select Staff"
           searchPlaceholder="Search..."
           value={formData.staffName}
+          categorySelectable={false}
           onChange={(item) => handleInputChange("staffName", item.value)}
           renderLeftIcon={() => <AntDesign style={styles.icon} color="black" name="Safety" size={20} />}
         />
+        
       )}
-
-      <TouchableOpacity style={styles.saveButton}>
-        <Text style={styles.saveButtonText}>Save</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -237,6 +284,8 @@ const styles = StyleSheet.create({
     borderWidth:1,
     borderColor:"blue",
     alignItems: 'center',
+    marginRight:20,
+    marginLeft:200,
   },
   syncText: {
     color: '#007AFF',
@@ -329,14 +378,21 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     fontSize: 14,
     marginHorizontal:20,
+    color:"black",
+    
   },
   saveButton: {
     backgroundColor: "#007BFF",
     padding: 12,
     borderRadius: 60,
     alignItems: "center",
-    marginTop: 40,
+    marginTop: 70,
     margin:20,
+  },activeButton: {
+    backgroundColor: "#007bff",
+    paddingVertical: 8,
+    paddingHorizontal: 32,
+    borderRadius: 20,
   },
   saveButtonText: {
     color: "white",

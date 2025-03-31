@@ -1,67 +1,107 @@
-import React, { useState, useEffect } from "react";
-import { 
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert 
-} from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
-import { useNavigation } from "@react-navigation/native";
-import axios from "axios";
-import HomeScreen from "./HomeScreen";
+"use client"
 
-export default function GoalsListScreen({ route }) {
-  const [activeTab, setActiveTab] = useState("Details");
-  const [profileData, setProfileData] = useState(null);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const navigation = useNavigation();
-  const { appointment } = route.params || {};
+import React, { useState, useEffect } from "react"
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native"
+import { useNavigation, useFocusEffect } from "@react-navigation/native"
+import axios from "axios"
+import Icon from "react-native-vector-icons/MaterialCommunityIcons"
 
+const GoalsListDetailScreen = ({ route }) => {
+  const [activeTab, setActiveTab] = useState("Details")
+  const [profileData, setProfileData] = useState(null)
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const navigation = useNavigation()
+  const { appointment } = route.params || {}
+
+  // This effect runs when the component mounts or when appointment changes
   useEffect(() => {
     if (appointment) {
-      setProfileData(appointment);
-      setLoading(false);
+      console.log("Setting profile data from appointment:", appointment)
+      setProfileData(appointment)
+      setLoading(false)
+    } else {
+      setLoading(true)
     }
-  }, [appointment]);
+  }, [appointment])
 
+  // This effect will run every time the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log("Screen focused, checking data")
+
+      // If we already have profileData but it's not the same as the appointment in route.params
+      if (profileData && appointment && profileData.id !== appointment.id) {
+        console.log("Updating profile data from new appointment")
+        setProfileData(appointment)
+      }
+
+      // If we don't have profileData but we have appointment in route.params
+      if (!profileData && appointment) {
+        console.log("Setting profile data from appointment on focus")
+        setProfileData(appointment)
+        setLoading(false)
+      }
+
+      return () => {
+       
+      }
+    }, [profileData, appointment]),
+  )
+
+  // Fetch user profile data
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!appointment?.user?.api_token) {
-        console.warn("No API token found, skipping request.");
-        return;
+        console.warn("No API token found, skipping request.")
+        return
       }
 
-      setLoading(true);
+      setLoading(true)
       try {
         const response = await axios.get("https://therapy.kidstherapy.me/api/profile", {
           headers: {
             Accept: "application/json",
             Authorization: `Bearer ${appointment.user.api_token}`,
           },
-        });
-        setUser(response.data);
-        setError(null);
+        })
+        setUser(response.data)
+        setError(null)
       } catch (error) {
-        console.error("API Error:", error);
-        setError(error.response?.data?.message || "Failed to load profile data.");
-        Alert.alert("Error", "Failed to fetch user profile. Please try again later.");
+        console.error("API Error:", error)
+        setError(error.response?.data?.message || "Failed to load profile data.")
+        Alert.alert("Error", "Failed to fetch user profile. Please try again later.")
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchUserProfile();
-  }, [appointment]);
+    if (appointment?.user?.api_token) {
+      fetchUserProfile()
+    }
+  }, [appointment])
+
+  // Navigate to GoalsListNotes with the correct data
+  const handleGoToNotes = () => {
+    if (profileData) {
+      navigation.navigate("GoalsListNotes", { profileData })
+    } else if (appointment) {
+      navigation.navigate("GoalsListNotes", { profileData: appointment })
+    } else {
+      Alert.alert("Error", "No appointment data available")
+    }
+  }
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.back} onPress={() => navigation.goBack(HomeScreen)}>
-          <Ionicons name="arrow-back" size={25} color="#fff" />
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("Home")}>
+          <Icon name="chevron-left" size={30} color="white" />
         </TouchableOpacity>
         <Text style={styles.logoText}>Goals List</Text>
       </View>
-
       {/* Sync Button */}
       <TouchableOpacity style={styles.syncButton} onPress={() => Alert.alert("Sync", "Syncing data...")}>
         <Text style={styles.syncText}>Sync</Text>
@@ -69,24 +109,16 @@ export default function GoalsListScreen({ route }) {
 
       {/* Tab Buttons */}
       <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={activeTab === "Details" ? styles.activeButton : styles.inactiveButton} 
+        <TouchableOpacity
+          style={activeTab === "Details" ? styles.activeButton : styles.inactiveButton}
           onPress={() => setActiveTab("Details")}
         >
           <Text style={styles.buttonText}>Details</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.inactiveButton} 
-          onPress={()=>{
-            navigation.navigate("GoalsListNotes", { profileData })
-          }}
-        >
+        <TouchableOpacity style={styles.inactiveButton} onPress={handleGoToNotes}>
           <Text style={styles.inactiveText}>Notes</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.inactiveButton} 
-          onPress={() => navigation.navigate("GoalsListVerify")}
-        >
+        <TouchableOpacity style={styles.inactiveButton} onPress={() => navigation.navigate("GoalsListVerify")}>
           <Text style={styles.inactiveText}>Verify</Text>
         </TouchableOpacity>
       </View>
@@ -109,7 +141,7 @@ export default function GoalsListScreen({ route }) {
             </View>
             <View style={styles.row}>
               <Text style={styles.label}>Therapy:</Text>
-              <Text style={styles.value}>{profileData.appointment_type.name || "N/A"}</Text>
+              <Text style={styles.value}>{profileData.hospital_department.name || "N/A"}</Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.label}>Date:</Text>
@@ -118,8 +150,8 @@ export default function GoalsListScreen({ route }) {
             <View style={styles.row}>
               <Text style={styles.label}>Time:</Text>
               <Text style={styles.value}>
-                {profileData.start_time && profileData.end_time 
-                  ? `${profileData.start_time} To ${profileData.end_time}` 
+                {profileData.start_time && profileData.end_time
+                  ? `${profileData.start_time} To ${profileData.end_time}`
                   : "N/A"}
               </Text>
             </View>
@@ -127,10 +159,7 @@ export default function GoalsListScreen({ route }) {
               <Text style={styles.label}>Status:</Text>
               <Text style={styles.value}>{profileData.appointment_status?.name || "N/A"}</Text>
             </View>
-            {/* <View style={styles.row}>
-              <Text style={styles.label}>Appointment Id:</Text>
-              <Text style={styles.value}>{profileData.appointment_status?.id || "N/A"}</Text>
-            </View> */}
+
             <View style={styles.row}>
               <Text style={styles.label}>Notes:</Text>
               <Text style={styles.value}>{profileData.problem || "N/A"}</Text>
@@ -140,40 +169,38 @@ export default function GoalsListScreen({ route }) {
           <Text style={styles.errorText}>No appointment data available</Text>
         )}
       </ScrollView>
-
-      {/* Collect Data Button */}
-      <TouchableOpacity 
-  style={styles.collectButton} 
-  onPress={() => navigation.navigate("CollectData")}
->
-  <Text style={styles.collectButtonText}>Send for Signin</Text>
-</TouchableOpacity>
-
+      <TouchableOpacity style={styles.collectButton} onPress={() => navigation.navigate("CollectData")}>
+        <Text style={styles.collectButtonText}>Send for Signin</Text>
+      </TouchableOpacity>
     </View>
-  );
+  )
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8F9FD",
   },
   header: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 30,
-    backgroundColor: "#0073e6",
-    padding: 30,
+    justifyContent: "space-between",
+    backgroundColor: "#007AFF",
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
+    paddingHorizontal: 20,
+    paddingVertical: 30,
   },
-  back: {
-    position: "absolute",
-    left: 20,
-    top: 20,
+  backButton: {
+    padding: 5,
+    width: 40,
   },
   logoText: {
+    color: "white",
     fontSize: 22,
     fontWeight: "bold",
-    color: "#FFFFFF",
+    textAlign: "center",
+    flex: 1,
   },
   syncButton: {
     alignSelf: "flex-end",
@@ -214,6 +241,18 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "bold",
   },
+  contentContainer: {
+    flex: 1,
+  },
+  loader: {
+    marginTop: 50,
+  },
+  errorText: {
+    textAlign: "center",
+    color: "red",
+    margin: 20,
+    fontSize: 16,
+  },
   infoBox: {
     backgroundColor: "#f9f9f9",
     padding: 16,
@@ -248,4 +287,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-});
+})
+export default GoalsListDetailScreen
+

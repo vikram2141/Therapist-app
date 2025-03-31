@@ -187,7 +187,7 @@ const HomeScreen = () => {
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => navigation.navigate("Profile")}
-        >
+           >
           <Image
             source={{ uri: user?.profile_picture || "https://via.placeholder.com/100" }}
             style={styles.profileImages}
